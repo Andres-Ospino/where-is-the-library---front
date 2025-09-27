@@ -10,7 +10,7 @@ import type {
   Member,
 } from "./types"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
+const API_BASE_URL = "https://backend-480236425407.us-central1.run.app"
 
 class ApiError extends Error {
   constructor(

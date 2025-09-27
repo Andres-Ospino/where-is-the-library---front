@@ -40,24 +40,13 @@ cd library-management-system
 npm install
 \`\`\`
 
-### 3. Configurar variables de entorno
+### 3. Configurar URL del backend
 
-Copia el archivo de ejemplo y configura las variables:
-
-\`\`\`bash
-cp .env.example .env.local
-\`\`\`
-
-Edita \`.env.local\` y configura:
-
-\`\`\`env
-NEXT_PUBLIC_API_URL="http://localhost:3001"
-\`\`\`
-
-Para producción:
-\`\`\`env
-NEXT_PUBLIC_API_URL="https://tu-api-nestjs.run.app"
-\`\`\`
+La aplicación consume el backend desde la URL
+`https://backend-480236425407.us-central1.run.app` definida en
+`lib/api.ts`. Si necesitas apuntar a otra instancia (por ejemplo, un
+backend local para desarrollo), actualiza el valor de
+`API_BASE_URL` en ese archivo antes de iniciar la aplicación.
 
 ### 4. Ejecutar en desarrollo
 
@@ -107,16 +96,15 @@ gcloud run deploy library-management \\
   --platform managed \\
   --region us-central1 \\
   --allow-unauthenticated \\
-  --set-env-vars NEXT_PUBLIC_API_URL=https://tu-api-nestjs.run.app
+  # No es necesario definir NEXT_PUBLIC_API_URL; la URL está codificada en lib/api.ts
 \`\`\`
 
 2. **Variables de entorno en Cloud Run**:
 
-Configura las variables de entorno necesarias en la consola de Google Cloud o mediante CLI:
+Si necesitas ajustar otras variables de entorno, puedes usar la consola de Google Cloud o la CLI (NEXT_PUBLIC_API_URL ya está definida en el código):
 
 \`\`\`bash
 gcloud run services update library-management \\
-  --set-env-vars NEXT_PUBLIC_API_URL=https://tu-api-nestjs.run.app \\
   --region us-central1
 \`\`\`
 
