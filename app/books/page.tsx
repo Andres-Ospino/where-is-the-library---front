@@ -1,26 +1,70 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { booksApi } from "@/lib/api"
+import { useRouter } from "next/navigation"
+import { booksApi, ApiError, authApi } from "@/lib/api"
 import type { Book } from "@/lib/types"
 import { ErrorMessage } from "@/components/ui/error-message"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 
-async function getBooks(): Promise<{ books: Book[]; error?: string }> {
-  try {
-    const books = await booksApi.getAll()
-    return { books }
-  } catch (error: any) {
-    console.error("Error fetching books:", error)
-    return { books: [], error: error.message || "Error al cargar los libros" }
-  }
-}
+export default function BooksPage() {
+  const router = useRouter()
+  const [books, setBooks] = useState<Book[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-export default async function BooksPage() {
-  const { books, error } = await getBooks()
+  useEffect(() => {
+    let isActive = true
+
+    const fetchBooks = async () => {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const response = await booksApi.getAll()
+        if (!isActive) return
+
+        setBooks(response)
+      } catch (err) {
+        if (!isActive) return
+
+        console.error("Error fetching books:", err)
+
+        if (err instanceof ApiError && err.statusCode === 401) {
+          authApi.clearToken()
+          setError("Tu sesión ha expirado. Redirigiendo al inicio de sesión...")
+          router.replace("/auth/login")
+          setBooks([])
+          return
+        }
+
+        const message = err instanceof Error ? err.message : "Error al cargar los libros"
+        setError(message)
+        setBooks([])
+      } finally {
+        if (isActive) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void fetchBooks()
+
+    return () => {
+      isActive = false
+    }
+  }, [router])
+
+  const totalBooks = books.length
+  const availableBooks = books.filter((book) => book.available)
+  const loanedBooks = books.filter((book) => !book.available)
+  const availabilityPercentage = totalBooks > 0 ? Math.round((availableBooks.length / totalBooks) * 100) : 0
 
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          {/* Header */}
           <div className="flex justify-between items-center mb-8">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Gestión de Libros</h1>
@@ -42,11 +86,13 @@ export default async function BooksPage() {
             </div>
           </div>
 
-          {/* Error Message */}
           {error && <ErrorMessage message={error} className="mb-6" />}
 
-          {/* Books Grid */}
-          {books.length === 0 && !error ? (
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <LoadingSpinner className="w-8 h-8 text-blue-600" />
+            </div>
+          ) : books.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,31 +146,24 @@ export default async function BooksPage() {
             </div>
           )}
 
-          {/* Stats */}
-          {books.length > 0 && (
+          {books.length > 0 && !isLoading && (
             <div className="mt-8 bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Estadísticas</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{books.length}</div>
+                  <div className="text-2xl font-bold text-blue-600">{totalBooks}</div>
                   <div className="text-sm text-gray-600">Total de Libros</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">
-                    {books.filter((book) => book.available).length}
-                  </div>
+                  <div className="text-2xl font-bold text-green-600">{availableBooks.length}</div>
                   <div className="text-sm text-gray-600">Disponibles</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-red-600">
-                    {books.filter((book) => !book.available).length}
-                  </div>
+                  <div className="text-2xl font-bold text-red-600">{loanedBooks.length}</div>
                   <div className="text-sm text-gray-600">Prestados</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {Math.round((books.filter((book) => book.available).length / books.length) * 100)}%
-                  </div>
+                  <div className="text-2xl font-bold text-purple-600">{availabilityPercentage}%</div>
                   <div className="text-sm text-gray-600">Disponibilidad</div>
                 </div>
               </div>

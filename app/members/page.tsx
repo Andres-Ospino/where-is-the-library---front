@@ -1,26 +1,72 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import Link from "next/link"
-import { membersApi } from "@/lib/api"
+import { useRouter } from "next/navigation"
+import { membersApi, ApiError, authApi } from "@/lib/api"
 import type { Member } from "@/lib/types"
 import { ErrorMessage } from "@/components/ui/error-message"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 
-async function getMembers(): Promise<{ members: Member[]; error?: string }> {
-  try {
-    const members = await membersApi.getAll()
-    return { members }
-  } catch (error: any) {
-    console.error("Error fetching members:", error)
-    return { members: [], error: error.message || "Error al cargar los miembros" }
-  }
-}
+export default function MembersPage() {
+  const router = useRouter()
+  const [members, setMembers] = useState<Member[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-export default async function MembersPage() {
-  const { members, error } = await getMembers()
+  useEffect(() => {
+    let isActive = true
+
+    const fetchMembers = async () => {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const response = await membersApi.getAll()
+        if (!isActive) return
+
+        setMembers(response)
+      } catch (err) {
+        if (!isActive) return
+
+        console.error("Error fetching members:", err)
+
+        if (err instanceof ApiError && err.statusCode === 401) {
+          authApi.clearToken()
+          setError("Tu sesión ha expirado. Redirigiendo al inicio de sesión...")
+          router.replace("/auth/login")
+          setMembers([])
+          return
+        }
+
+        const message = err instanceof Error ? err.message : "Error al cargar los miembros"
+        setError(message)
+        setMembers([])
+      } finally {
+        if (isActive) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void fetchMembers()
+
+    return () => {
+      isActive = false
+    }
+  }, [router])
+
+  const membersWithPhone = members.filter((member) => Boolean(member.phone))
+  const firstMemberDate =
+    members.length > 0
+      ? new Date(Math.min(...members.map((member) => new Date(member.createdAt).getTime())))
+      : null
+  const activeYears = firstMemberDate ? new Date().getFullYear() - firstMemberDate.getFullYear() : 0
 
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          {/* Header */}
           <div className="flex justify-between items-center mb-8">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Gestión de Miembros</h1>
@@ -42,11 +88,13 @@ export default async function MembersPage() {
             </div>
           </div>
 
-          {/* Error Message */}
           {error && <ErrorMessage message={error} className="mb-6" />}
 
-          {/* Members Grid */}
-          {members.length === 0 && !error ? (
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <LoadingSpinner className="w-8 h-8 text-green-600" />
+            </div>
+          ) : members.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,8 +148,7 @@ export default async function MembersPage() {
             </div>
           )}
 
-          {/* Stats */}
-          {members.length > 0 && (
+          {members.length > 0 && !isLoading && (
             <div className="mt-8 bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Estadísticas</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -110,16 +157,11 @@ export default async function MembersPage() {
                   <div className="text-sm text-gray-600">Total de Miembros</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {members.filter((member) => member.phone).length}
-                  </div>
+                  <div className="text-2xl font-bold text-blue-600">{membersWithPhone.length}</div>
                   <div className="text-sm text-gray-600">Con Teléfono</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {new Date().getFullYear() -
-                      new Date(Math.min(...members.map((m) => new Date(m.createdAt).getTime()))).getFullYear() || 0}
-                  </div>
+                  <div className="text-2xl font-bold text-purple-600">{activeYears}</div>
                   <div className="text-sm text-gray-600">Años Activos</div>
                 </div>
               </div>

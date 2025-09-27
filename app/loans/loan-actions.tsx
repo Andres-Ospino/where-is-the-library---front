@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { loansApi } from "@/lib/api"
+import { loansApi, ApiError, authApi } from "@/lib/api"
 import type { Book, Member, CreateLoanDto } from "@/lib/types"
 import { ErrorMessage } from "@/components/ui/error-message"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -12,9 +12,10 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 interface LoanActionsProps {
   books: Book[]
   members: Member[]
+  onLoanCreated?: () => Promise<void> | void
 }
 
-export function LoanActions({ books, members }: LoanActionsProps) {
+export function LoanActions({ books, members, onLoanCreated }: LoanActionsProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -38,10 +39,19 @@ export function LoanActions({ books, members }: LoanActionsProps) {
 
     try {
       await loansApi.create(formData)
+      if (onLoanCreated) {
+        await onLoanCreated()
+      }
       setFormData({ bookId: "", memberId: "" })
-      router.refresh()
     } catch (err: any) {
       console.error("Error creating loan:", err)
+      if (err instanceof ApiError && err.statusCode === 401) {
+        authApi.clearToken()
+        setError("Tu sesión ha expirado. Redirigiendo al inicio de sesión...")
+        router.replace("/auth/login")
+        return
+      }
+
       setError(err.message || "Error al crear el préstamo")
     } finally {
       setIsLoading(false)

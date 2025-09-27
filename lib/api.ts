@@ -11,14 +11,83 @@ import type {
 } from "./types"
 
 const API_BASE_URL = "https://backend-480236425407.us-central1.run.app"
+const AUTH_TOKEN_STORAGE_KEY = "library-auth-token"
 
-class ApiError extends Error {
+const isBrowser = () => typeof window !== "undefined"
+
+export class ApiError extends Error {
   constructor(
     public statusCode: number,
     message: string,
   ) {
     super(message)
     this.name = "ApiError"
+  }
+}
+
+type AuthTokenProvider = () => string | null
+
+let inMemoryAuthToken: string | null = null
+let customAuthTokenProvider: AuthTokenProvider | null = null
+
+function persistAuthToken(token: string | null) {
+  inMemoryAuthToken = token
+
+  if (!isBrowser()) {
+    return
+  }
+
+  try {
+    if (token) {
+      window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token)
+    } else {
+      window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
+    }
+  } catch (error) {
+    console.warn("No se pudo actualizar el token en el almacenamiento local", error)
+  }
+}
+
+export function setAuthToken(token: string) {
+  persistAuthToken(token)
+}
+
+export function clearAuthToken() {
+  persistAuthToken(null)
+}
+
+export function configureAuthTokenProvider(provider: AuthTokenProvider | null) {
+  customAuthTokenProvider = provider
+}
+
+export function getAuthToken(): string | null {
+  if (customAuthTokenProvider) {
+    try {
+      const providedToken = customAuthTokenProvider()
+      if (providedToken) {
+        inMemoryAuthToken = providedToken
+        return providedToken
+      }
+    } catch (error) {
+      console.warn("No se pudo obtener el token desde el proveedor configurado", error)
+    }
+  }
+
+  if (inMemoryAuthToken) {
+    return inMemoryAuthToken
+  }
+
+  if (!isBrowser()) {
+    return null
+  }
+
+  try {
+    const storedToken = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
+    inMemoryAuthToken = storedToken
+    return storedToken
+  } catch (error) {
+    console.warn("No se pudo leer el token almacenado", error)
+    return null
   }
 }
 
@@ -86,9 +155,55 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return (data as T) ?? (undefined as T)
 }
 
-const defaultHeaders = {
+interface LoginCredentials {
+  email: string
+  password: string
+}
+
+interface LoginResponse {
+  token?: string
+  accessToken?: string
+  access_token?: string
+  [key: string]: unknown
+}
+
+function extractAuthToken(payload: LoginResponse | undefined): string | null {
+  if (!payload || typeof payload !== "object") {
+    return null
+  }
+
+  const possibleKeys: (keyof LoginResponse)[] = ["token", "accessToken", "access_token"]
+
+  for (const key of possibleKeys) {
+    const value = payload[key]
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value
+    }
+  }
+
+  return null
+}
+
+const defaultHeaders: Record<string, string> = {
   Accept: "application/json",
   "Content-Type": "application/json",
+}
+
+function withAuthHeaders(customHeaders?: HeadersInit): HeadersInit {
+  const headers = new Headers(defaultHeaders)
+
+  if (customHeaders) {
+    new Headers(customHeaders).forEach((value, key) => {
+      headers.set(key, value)
+    })
+  }
+
+  const token = getAuthToken()
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`)
+  }
+
+  return headers
 }
 
 export const api = {
@@ -96,7 +211,7 @@ export const api = {
   async get<T>(path: string, query?: Record<string, QueryParamValue>): Promise<T> {
     const response = await fetch(buildUrl(path, query), {
       method: "GET",
-      headers: defaultHeaders,
+      headers: withAuthHeaders(),
       cache: "no-store", // Ensure fresh data
     })
 
@@ -107,7 +222,7 @@ export const api = {
   async post<T>(path: string, body?: unknown): Promise<T> {
     const response = await fetch(buildUrl(path), {
       method: "POST",
-      headers: defaultHeaders,
+      headers: withAuthHeaders(),
       body: body !== undefined ? JSON.stringify(body) : undefined,
       cache: "no-store",
     })
@@ -119,7 +234,7 @@ export const api = {
   async put<T>(path: string, body?: unknown): Promise<T> {
     const response = await fetch(buildUrl(path), {
       method: "PUT",
-      headers: defaultHeaders,
+      headers: withAuthHeaders(),
       body: body !== undefined ? JSON.stringify(body) : undefined,
       cache: "no-store",
     })
@@ -131,7 +246,7 @@ export const api = {
   async patch<T>(path: string, body?: unknown): Promise<T> {
     const response = await fetch(buildUrl(path), {
       method: "PATCH",
-      headers: defaultHeaders,
+      headers: withAuthHeaders(),
       body: body !== undefined ? JSON.stringify(body) : undefined,
       cache: "no-store",
     })
@@ -143,12 +258,30 @@ export const api = {
   async delete<T>(path: string): Promise<T> {
     const response = await fetch(buildUrl(path), {
       method: "DELETE",
-      headers: defaultHeaders,
+      headers: withAuthHeaders(),
       cache: "no-store",
     })
 
     return handleResponse<T>(response)
   },
+}
+
+export const authApi = {
+  async login(credentials: LoginCredentials): Promise<string> {
+    const response = await api.post<LoginResponse>("/auth/login", credentials)
+    const token = extractAuthToken(response)
+
+    if (!token) {
+      throw new Error("Token de autenticación no encontrado en la respuesta del servidor")
+    }
+
+    setAuthToken(token)
+    return token
+  },
+  setToken: setAuthToken,
+  clearToken: clearAuthToken,
+  getToken: getAuthToken,
+  configureTokenProvider: configureAuthTokenProvider,
 }
 
 // Specific API methods for books
