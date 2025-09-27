@@ -36,6 +36,11 @@ export interface CreateBookDto {
   isbn?: string
 }
 
+export interface BookQuery {
+  title?: string
+  author?: string
+}
+
 export interface CreateMemberDto {
   name: string
   email: string
@@ -45,6 +50,12 @@ export interface CreateMemberDto {
 export interface CreateLoanDto {
   bookId: string
   memberId: string
+}
+
+export interface LoanQuery {
+  bookId?: string
+  memberId?: string
+  activeOnly?: boolean
 }
 
 export interface ApiError {
