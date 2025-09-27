@@ -5,9 +5,9 @@ import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.app',
+  title: 'Sistema de Gestión de Biblioteca',
+  description: 'Interfaz web para administrar el catálogo, los miembros y los préstamos de la biblioteca.',
+  generator: 'where-is-the-library',
 }
 
 export default function RootLayout({
