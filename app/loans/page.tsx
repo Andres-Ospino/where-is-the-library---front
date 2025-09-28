@@ -103,9 +103,32 @@ export default function LoansPage() {
     member: members.find((member) => member.id === loan.memberId),
   }))
 
-  const activeLoans = enrichedLoans.filter((loan) => !loan.returned)
-  const returnedLoans = enrichedLoans.filter((loan) => loan.returned)
+  const activeLoans = enrichedLoans.filter((loan) => !loan.isReturned)
+  const returnedLoans = enrichedLoans.filter((loan) => loan.isReturned)
   const availableBooks = books.filter((book) => book.available)
+
+  const now = new Date()
+  const activeLoansWithDueInfo = activeLoans.filter((loan) => {
+    if (!loan.returnDate) return false
+    const dueDate = new Date(loan.returnDate)
+    return !Number.isNaN(dueDate.getTime())
+  })
+  const overdueLoans = activeLoansWithDueInfo.filter((loan) => {
+    if (!loan.returnDate) return false
+    const dueDate = new Date(loan.returnDate)
+    return !Number.isNaN(dueDate.getTime()) && dueDate < now
+  })
+  const overdueDisplayValue = activeLoansWithDueInfo.length > 0 ? overdueLoans.length.toString() : "N/D"
+
+  const formatDate = (value?: string | null) => {
+    if (!value) return null
+    const parsedDate = new Date(value)
+    if (Number.isNaN(parsedDate.getTime())) {
+      return null
+    }
+
+    return parsedDate.toLocaleDateString("es-ES")
+  }
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -148,9 +171,7 @@ export default function LoansPage() {
                   <div className="text-sm text-gray-600">Libros Disponibles</div>
                 </div>
                 <div className="bg-white rounded-lg shadow-md p-4">
-                  <div className="text-2xl font-bold text-red-600">
-                    {activeLoans.filter((loan) => new Date(loan.dueDate) < new Date()).length}
-                  </div>
+                  <div className="text-2xl font-bold text-red-600">{overdueDisplayValue}</div>
                   <div className="text-sm text-gray-600">Vencidos</div>
                 </div>
               </div>
@@ -181,42 +202,48 @@ export default function LoansPage() {
                   </div>
                 ) : (
                   <div className="grid gap-4">
-                    {activeLoans.map((loan) => (
-                      <div key={loan.id} className="bg-white rounded-lg shadow-md p-6">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-4 mb-2">
-                              <h3 className="text-lg font-semibold text-gray-900">
-                                {loan.book?.title || "Libro no encontrado"}
-                              </h3>
-                              <span
-                                className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  new Date(loan.dueDate) < new Date()
-                                    ? "bg-red-100 text-red-800"
-                                    : "bg-yellow-100 text-yellow-800"
-                                }`}
+                    {activeLoans.map((loan) => {
+                      const loanDateLabel = formatDate(loan.loanDate)
+                      const returnDateInstance = loan.returnDate ? new Date(loan.returnDate) : null
+                      const hasReturnDate = Boolean(returnDateInstance) && !Number.isNaN(returnDateInstance.getTime())
+                      const isOverdue = Boolean(returnDateInstance && returnDateInstance < now)
+                      const statusClass = isOverdue ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800"
+
+                      return (
+                        <div key={loan.id} className="bg-white rounded-lg shadow-md p-6">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-4 mb-2">
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                  {loan.book?.title || "Libro no encontrado"}
+                                </h3>
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusClass}`}>
+                                  {isOverdue ? "Vencido" : "Activo"}
+                                </span>
+                              </div>
+                              <p className="text-gray-600 mb-1">Autor: {loan.book?.author || "Desconocido"}</p>
+                              <p className="text-gray-600 mb-1">Miembro: {loan.member?.name || "Miembro no encontrado"}</p>
+                              <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+                                <span>Prestado: {loanDateLabel ?? "Fecha no disponible"}</span>
+                                <span>
+                                  {hasReturnDate
+                                    ? `Fecha objetivo: ${returnDateInstance.toLocaleDateString("es-ES")}`
+                                    : "Fecha objetivo no disponible"}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => void handleReturnLoan(loan.id)}
+                                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors text-sm"
                               >
-                                {new Date(loan.dueDate) < new Date() ? "Vencido" : "Activo"}
-                              </span>
+                                Devolver
+                              </button>
                             </div>
-                            <p className="text-gray-600 mb-1">Autor: {loan.book?.author || "Desconocido"}</p>
-                            <p className="text-gray-600 mb-1">Miembro: {loan.member?.name || "Miembro no encontrado"}</p>
-                            <div className="flex gap-4 text-sm text-gray-500">
-                              <span>Prestado: {new Date(loan.loanDate).toLocaleDateString("es-ES")}</span>
-                              <span>Vence: {new Date(loan.dueDate).toLocaleDateString("es-ES")}</span>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => void handleReturnLoan(loan.id)}
-                              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors text-sm"
-                            >
-                              Devolver
-                            </button>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -225,29 +252,32 @@ export default function LoansPage() {
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Historial de Devoluciones</h2>
                   <div className="grid gap-4">
-                    {returnedLoans.slice(0, 5).map((loan) => (
-                      <div key={loan.id} className="bg-white rounded-lg shadow-md p-6 opacity-75">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-4 mb-2">
-                              <h3 className="text-lg font-semibold text-gray-900">
-                                {loan.book?.title || "Libro no encontrado"}
-                              </h3>
-                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Devuelto
-                              </span>
-                            </div>
-                            <p className="text-gray-600 mb-1">Miembro: {loan.member?.name || "Miembro no encontrado"}</p>
-                            <div className="flex gap-4 text-sm text-gray-500">
-                              <span>Prestado: {new Date(loan.loanDate).toLocaleDateString("es-ES")}</span>
-                              {loan.returnDate && (
-                                <span>Devuelto: {new Date(loan.returnDate).toLocaleDateString("es-ES")}</span>
-                              )}
+                    {returnedLoans.slice(0, 5).map((loan) => {
+                      const loanDateLabel = formatDate(loan.loanDate)
+                      const returnDateLabel = formatDate(loan.returnDate)
+
+                      return (
+                        <div key={loan.id} className="bg-white rounded-lg shadow-md p-6 opacity-75">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-4 mb-2">
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                  {loan.book?.title || "Libro no encontrado"}
+                                </h3>
+                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  Devuelto
+                                </span>
+                              </div>
+                              <p className="text-gray-600 mb-1">Miembro: {loan.member?.name || "Miembro no encontrado"}</p>
+                              <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+                                <span>Prestado: {loanDateLabel ?? "Fecha no disponible"}</span>
+                                {returnDateLabel && <span>Devuelto: {returnDateLabel}</span>}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}

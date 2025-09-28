@@ -134,7 +134,9 @@ export default function BooksPage() {
 
                   <div className="border-t pt-4">
                     <div className="flex justify-between items-center text-xs text-gray-500">
-                      <span>Agregado: {new Date(book.createdAt).toLocaleDateString("es-ES")}</span>
+                      <span>
+                        Agregado: {book.createdAt ? new Date(book.createdAt).toLocaleDateString("es-ES") : "Fecha no disponible"}
+                      </span>
                       <div className="flex gap-2">
                         <button className="text-blue-600 hover:text-blue-800 font-medium">Editar</button>
                         <button className="text-red-600 hover:text-red-800 font-medium">Eliminar</button>

@@ -5,8 +5,8 @@ export interface Book {
   author: string
   isbn?: string
   available: boolean
-  createdAt: string
-  updatedAt: string
+  createdAt?: string | null
+  updatedAt?: string | null
 }
 
 export interface Member {
@@ -14,18 +14,17 @@ export interface Member {
   name: string
   email: string
   phone?: string
-  createdAt: string
-  updatedAt: string
+  createdAt?: string | null
+  updatedAt?: string | null
 }
 
 export interface Loan {
   id: string
   bookId: string
   memberId: string
-  loanDate: string
-  returnDate?: string
-  dueDate: string
-  returned: boolean
+  loanDate?: string | null
+  returnDate?: string | null
+  isReturned: boolean
   book?: Book
   member?: Member
 }
@@ -45,7 +44,7 @@ export interface CreateMemberDto {
   name: string
   email: string
   phone?: string
-  password: string
+  password?: string
 }
 
 export interface CreateLoanDto {

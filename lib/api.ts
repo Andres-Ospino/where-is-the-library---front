@@ -10,7 +10,11 @@ import type {
   Member,
 } from "./types"
 
-const API_BASE_URL = "https://backend-480236425407.us-central1.run.app"
+// Permite configurar la URL base del backend desde variables de entorno en tiempo de build,
+// utilizando el valor de la colección de Postman como predeterminado para mantener compatibilidad.
+const API_BASE_URL =
+  (process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL)?.trim() ||
+  "https://backend-480236425407.us-central1.run.app"
 const AUTH_TOKEN_STORAGE_KEY = "library-auth-token"
 
 const isBrowser = () => typeof window !== "undefined"
@@ -297,8 +301,22 @@ export const booksApi = {
 export const membersApi = {
   getAll: () => api.get<Member[]>("/members"),
   getById: (id: string) => api.get<Member>(`/members/${id}`),
-  create: (data: CreateMemberDto) => api.post<Member | undefined>("/members", data),
-  update: (id: string, data: Partial<CreateMemberDto>) => api.put<Member | undefined>(`/members/${id}`, data),
+  create: (data: CreateMemberDto) => {
+    const payload: CreateMemberDto = { ...data }
+    if (!payload.password) {
+      delete payload.password
+    }
+
+    return api.post<Member | undefined>("/members", payload)
+  },
+  update: (id: string, data: Partial<CreateMemberDto>) => {
+    const payload: Partial<CreateMemberDto> = { ...data }
+    if (!payload.password) {
+      delete payload.password
+    }
+
+    return api.put<Member | undefined>(`/members/${id}`, payload)
+  },
   delete: (id: string) => api.delete<void>(`/members/${id}`),
 }
 
