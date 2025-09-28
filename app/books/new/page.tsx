@@ -1,4 +1,6 @@
+import { Suspense } from "react"
 import Link from "next/link"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { CreateBookForm } from "./create-book-form"
 
 export default function NewBookPage() {
@@ -21,7 +23,15 @@ export default function NewBookPage() {
 
           {/* Form */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <CreateBookForm />
+            <Suspense
+              fallback={
+                <div className="flex justify-center py-8">
+                  <LoadingSpinner className="w-6 h-6 text-purple-600" />
+                </div>
+              }
+            >
+              <CreateBookForm />
+            </Suspense>
           </div>
         </div>
       </div>
