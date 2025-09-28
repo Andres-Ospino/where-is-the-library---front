@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { booksApi, ApiError, authApi } from "@/lib/api"
-import type { Book } from "@/lib/types"
+import { booksApi, ApiError, authApi, librariesApi } from "@/lib/api"
+import type { Book, Library } from "@/lib/types"
 import { ErrorMessage } from "@/components/ui/error-message"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 
@@ -13,6 +13,7 @@ export default function BooksPage() {
   const [books, setBooks] = useState<Book[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [librariesMap, setLibrariesMap] = useState<Record<string, Library>>({})
 
   useEffect(() => {
     let isActive = true
@@ -22,10 +23,28 @@ export default function BooksPage() {
       setError(null)
 
       try {
-        const response = await booksApi.getAll()
+        const [booksResponse, librariesResponse] = await Promise.all([
+          booksApi.getAll(),
+          librariesApi.getAll(),
+        ])
+
         if (!isActive) return
 
-        setBooks(response)
+        const mappedLibraries = librariesResponse.reduce<Record<string, Library>>(
+          (acc, library) => {
+            acc[library.id] = library
+            return acc
+          },
+          {},
+        )
+
+        const booksWithLibraries = booksResponse.map((book) => ({
+          ...book,
+          library: book.library ?? mappedLibraries[book.libraryId],
+        }))
+
+        setLibrariesMap(mappedLibraries)
+        setBooks(booksWithLibraries)
       } catch (err) {
         if (!isActive) return
 
@@ -36,12 +55,14 @@ export default function BooksPage() {
           setError("Tu sesión ha expirado. Redirigiendo al inicio de sesión...")
           router.replace("/auth/login")
           setBooks([])
+          setLibrariesMap({})
           return
         }
 
         const message = err instanceof Error ? err.message : "Error al cargar los libros"
         setError(message)
         setBooks([])
+        setLibrariesMap({})
       } finally {
         if (isActive) {
           setIsLoading(false)
@@ -132,7 +153,7 @@ export default function BooksPage() {
                       <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-2">{book.title}</h3>
                       <p className="text-gray-600 text-sm mb-2">por {book.author}</p>
                       <p className="text-gray-500 text-xs mb-1">
-                        Biblioteca: {book.library?.name ?? "No especificada"}
+                        Biblioteca: {book.library?.name ?? librariesMap[book.libraryId]?.name ?? "No especificada"}
                       </p>
                       {book.isbn && <p className="text-gray-500 text-xs">ISBN: {book.isbn}</p>}
                     </div>
