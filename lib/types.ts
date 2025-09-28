@@ -15,7 +15,6 @@ export interface Book {
 export interface Library {
   id: string
   name: string
-  description?: string
   /** Dirección física completa de la biblioteca */
   address?: string
   /** Horario de atención o disponibilidad para visitas */
@@ -55,7 +54,6 @@ export interface CreateBookDto {
 
 export interface CreateLibraryDto {
   name: string
-  description?: string
   /** Dirección física completa registrada en el backend */
   address: string
   /** Horario de atención aceptado por el backend */

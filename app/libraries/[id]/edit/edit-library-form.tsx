@@ -18,7 +18,6 @@ export function EditLibraryForm({ libraryId }: EditLibraryFormProps) {
   const [library, setLibrary] = useState<Library | null>(null)
   const [formData, setFormData] = useState<CreateLibraryDto>({
     name: "",
-    description: "",
     address: "",
     openingHours: "",
   })
@@ -40,7 +39,6 @@ export function EditLibraryForm({ libraryId }: EditLibraryFormProps) {
         setLibrary(response)
         setFormData({
           name: response.name ?? "",
-          description: response.description ?? "",
           address: response.address ?? "",
           openingHours: response.openingHours ?? "",
         })
@@ -72,9 +70,7 @@ export function EditLibraryForm({ libraryId }: EditLibraryFormProps) {
     }
   }, [libraryId, router])
 
-  const handleInputChange = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target
     setFormData((previous) => ({
       ...previous,
@@ -96,7 +92,6 @@ export function EditLibraryForm({ libraryId }: EditLibraryFormProps) {
       const trimmedName = formData.name.trim()
       const trimmedAddress = formData.address.trim()
       const trimmedOpeningHours = formData.openingHours.trim()
-      const trimmedDescription = formData.description?.trim()
 
       if (!trimmedName) {
         setError("El nombre es obligatorio")
@@ -120,7 +115,6 @@ export function EditLibraryForm({ libraryId }: EditLibraryFormProps) {
         name: trimmedName,
         address: trimmedAddress,
         openingHours: trimmedOpeningHours,
-        ...(trimmedDescription && { description: trimmedDescription }),
       }
 
       await librariesApi.update(libraryId, payload)
@@ -180,23 +174,6 @@ export function EditLibraryForm({ libraryId }: EditLibraryFormProps) {
           disabled={isSaving}
         />
       </div>
-
-      <div>
-        <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-          Descripción (Opcional)
-        </label>
-        <textarea
-          id="description"
-          name="description"
-          rows={4}
-          value={formData.description ?? ""}
-          onChange={handleInputChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-          placeholder="Describe brevemente los servicios o colecciones de la biblioteca"
-          disabled={isSaving}
-        />
-      </div>
-
       <div>
         <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
           Dirección *

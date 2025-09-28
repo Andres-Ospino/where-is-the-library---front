@@ -190,9 +190,16 @@ export default function LibrariesPage() {
                           {library.openingHours && (
                             <p className="text-xs text-gray-500 mt-1">Horario: {library.openingHours}</p>
                           )}
-                          {library.description && (
-                            <p className="text-gray-600 mt-2 max-w-2xl">{library.description}</p>
-                          )}
+                          <p className="text-gray-600 mt-2 max-w-2xl">
+                            {hasBooks
+                              ? `Explora ${
+                                  books.length === 1
+                                    ? "el libro disponible"
+                                    : `los ${books.length} libros disponibles`
+                                } en esta biblioteca.`
+                              : "Todavía no hay libros asociados a esta biblioteca."
+                            }
+                          </p>
                         </div>
                         <div className="flex flex-wrap gap-3">
                           <Link
