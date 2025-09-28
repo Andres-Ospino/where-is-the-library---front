@@ -77,6 +77,45 @@ export default function BooksPage() {
     }
   }, [router])
 
+  const handleEdit = (bookId: string) => {
+    router.push(`/books/${bookId}/edit`)
+  }
+
+  const handleDelete = async (bookId: string) => {
+    const bookToDelete = books.find((item) => item.id === bookId)
+    const confirmationMessage = bookToDelete
+      ? `¿Estás seguro de que deseas eliminar "${bookToDelete.title}"?`
+      : "¿Estás seguro de que deseas eliminar este libro?"
+
+    const confirmed = window.confirm(confirmationMessage)
+    if (!confirmed) {
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      await booksApi.delete(bookId)
+      setBooks((previous) => previous.filter((item) => item.id !== bookId))
+      router.refresh()
+    } catch (err) {
+      console.error("Error deleting book:", err)
+
+      if (err instanceof ApiError && err.statusCode === 401) {
+        authApi.clearToken()
+        setError("Tu sesión ha expirado. Redirigiendo al inicio de sesión...")
+        router.replace("/auth/login")
+        return
+      }
+
+      const message = err instanceof Error ? err.message : "Error al eliminar el libro"
+      setError(message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const totalBooks = books.length
   const availableBooks = books.filter((book) => book.available)
   const loanedBooks = books.filter((book) => !book.available)
@@ -172,8 +211,22 @@ export default function BooksPage() {
                         Agregado: {book.createdAt ? new Date(book.createdAt).toLocaleDateString("es-ES") : "Fecha no disponible"}
                       </span>
                       <div className="flex gap-2">
-                        <button className="text-blue-600 hover:text-blue-800 font-medium">Editar</button>
-                        <button className="text-red-600 hover:text-red-800 font-medium">Eliminar</button>
+                        <button
+                          type="button"
+                          onClick={() => handleEdit(book.id)}
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleDelete(book.id)
+                          }}
+                          className="text-red-600 hover:text-red-800 font-medium"
+                        >
+                          Eliminar
+                        </button>
                       </div>
                     </div>
                   </div>
