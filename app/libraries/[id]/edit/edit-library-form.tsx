@@ -19,7 +19,8 @@ export function EditLibraryForm({ libraryId }: EditLibraryFormProps) {
   const [formData, setFormData] = useState<CreateLibraryDto>({
     name: "",
     description: "",
-    location: "",
+    address: "",
+    openingHours: "",
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -40,7 +41,8 @@ export function EditLibraryForm({ libraryId }: EditLibraryFormProps) {
         setFormData({
           name: response.name ?? "",
           description: response.description ?? "",
-          location: response.location ?? "",
+          address: response.address ?? "",
+          openingHours: response.openingHours ?? "",
         })
       } catch (err) {
         if (!isActive) return
@@ -91,16 +93,34 @@ export function EditLibraryForm({ libraryId }: EditLibraryFormProps) {
     setError(null)
 
     try {
-      const payload: Partial<CreateLibraryDto> = {
-        name: formData.name.trim(),
-        ...(formData.description?.trim() && { description: formData.description.trim() }),
-        ...(formData.location?.trim() && { location: formData.location.trim() }),
-      }
+      const trimmedName = formData.name.trim()
+      const trimmedAddress = formData.address.trim()
+      const trimmedOpeningHours = formData.openingHours.trim()
+      const trimmedDescription = formData.description?.trim()
 
-      if (!payload.name) {
+      if (!trimmedName) {
         setError("El nombre es obligatorio")
         setIsSaving(false)
         return
+      }
+
+      if (!trimmedAddress) {
+        setError("La dirección es obligatoria")
+        setIsSaving(false)
+        return
+      }
+
+      if (!trimmedOpeningHours) {
+        setError("El horario de atención es obligatorio")
+        setIsSaving(false)
+        return
+      }
+
+      const payload: Partial<CreateLibraryDto> = {
+        name: trimmedName,
+        address: trimmedAddress,
+        openingHours: trimmedOpeningHours,
+        ...(trimmedDescription && { description: trimmedDescription }),
       }
 
       await librariesApi.update(libraryId, payload)
@@ -135,7 +155,10 @@ export function EditLibraryForm({ libraryId }: EditLibraryFormProps) {
     return <ErrorMessage message={error ?? "Biblioteca no encontrada"} />
   }
 
-  const isFormValid = formData.name.trim().length > 0 && formData.location.trim().length > 0
+  const isFormValid =
+    formData.name.trim().length > 0 &&
+    formData.address.trim().length > 0 &&
+    formData.openingHours.trim().length > 0
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -175,18 +198,35 @@ export function EditLibraryForm({ libraryId }: EditLibraryFormProps) {
       </div>
 
       <div>
-        <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
-          Ubicación *
+        <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
+          Dirección *
         </label>
         <input
-          id="location"
-          name="location"
+          id="address"
+          name="address"
           type="text"
           required
-          value={formData.location ?? ""}
+          value={formData.address}
           onChange={handleInputChange}
           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-          placeholder="Ingresa la dirección o ciudad"
+          placeholder="Ingresa la dirección completa"
+          disabled={isSaving}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="openingHours" className="block text-sm font-medium text-gray-700 mb-2">
+          Horario de atención *
+        </label>
+        <input
+          id="openingHours"
+          name="openingHours"
+          type="text"
+          required
+          value={formData.openingHours}
+          onChange={handleInputChange}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+          placeholder="Ej. Lunes a viernes de 9:00 a 18:00"
           disabled={isSaving}
         />
       </div>
