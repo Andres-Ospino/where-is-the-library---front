@@ -56,6 +56,45 @@ export default function MembersPage() {
     }
   }, [router])
 
+  const handleEdit = (memberId: string) => {
+    router.push(`/members/${memberId}/edit`)
+  }
+
+  const handleDelete = async (memberId: string) => {
+    const memberToDelete = members.find((item) => item.id === memberId)
+    const confirmationMessage = memberToDelete
+      ? `¿Estás seguro de que deseas eliminar a "${memberToDelete.name}"?`
+      : "¿Estás seguro de que deseas eliminar este miembro?"
+
+    const confirmed = window.confirm(confirmationMessage)
+    if (!confirmed) {
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      await membersApi.delete(memberId)
+      setMembers((previous) => previous.filter((item) => item.id !== memberId))
+      router.refresh()
+    } catch (err) {
+      console.error("Error deleting member:", err)
+
+      if (err instanceof ApiError && err.statusCode === 401) {
+        authApi.clearToken()
+        setError("Tu sesión ha expirado. Redirigiendo al inicio de sesión...")
+        router.replace("/auth/login")
+        return
+      }
+
+      const message = err instanceof Error ? err.message : "Error al eliminar el miembro"
+      setError(message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const membersWithPhone = members.filter((member) => Boolean(member.phone))
 
   return (
@@ -130,9 +169,24 @@ export default function MembersPage() {
                   </div>
 
                   <div className="border-t pt-4">
-                    <div className="flex justify-end gap-2 text-xs text-gray-500">
-                      <button className="text-green-600 hover:text-green-800 font-medium">Editar</button>
-                      <button className="text-red-600 hover:text-red-800 font-medium">Eliminar</button>
+                    <div className="flex justify-between items-center text-xs text-gray-500">
+                      <span>
+                        Registrado: {member.createdAt ? new Date(member.createdAt).toLocaleDateString("es-ES") : "Fecha no disponible"}
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(member.id)}
+                          className="text-green-600 hover:text-green-800 font-medium"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDelete(member.id)}
+                          className="text-red-600 hover:text-red-800 font-medium"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
