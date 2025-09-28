@@ -252,6 +252,9 @@ export function LoansPageContent() {
                       const loanDateLabel = formatDate(loan.loanDate)
                       const returnDateInstance = loan.returnDate ? new Date(loan.returnDate) : null
                       const hasReturnDate = Boolean(returnDateInstance) && !Number.isNaN(returnDateInstance.getTime())
+                      const returnDateLabel = hasReturnDate
+                        ? returnDateInstance!.toLocaleDateString("es-ES")
+                        : null
                       const isOverdue = Boolean(returnDateInstance && returnDateInstance < now)
                       const statusClass = isOverdue ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800"
 
@@ -274,11 +277,7 @@ export function LoansPageContent() {
                               </p>
                               <div className="flex flex-wrap gap-4 text-sm text-gray-500">
                                 <span>Prestado: {loanDateLabel ?? "Fecha no disponible"}</span>
-                                <span>
-                                  {hasReturnDate
-                                    ? `Fecha objetivo: ${returnDateInstance.toLocaleDateString("es-ES")}`
-                                    : "Fecha objetivo no disponible"}
-                                </span>
+                                {hasReturnDate && <span>Fecha objetivo: {returnDateLabel}</span>}
                               </div>
                             </div>
                             <div className="flex gap-2">

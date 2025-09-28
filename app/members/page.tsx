@@ -96,14 +96,6 @@ export default function MembersPage() {
   }
 
   const membersWithPhone = members.filter((member) => Boolean(member.phone))
-  const memberCreationDates = members
-    .map((member) => (member.createdAt ? new Date(member.createdAt) : null))
-    .filter((date): date is Date => Boolean(date) && !Number.isNaN(date.getTime()))
-  const firstMemberDate =
-    memberCreationDates.length > 0
-      ? new Date(Math.min(...memberCreationDates.map((date) => date.getTime())))
-      : null
-  const activeYears = firstMemberDate ? Math.max(0, new Date().getFullYear() - firstMemberDate.getFullYear()) : 0
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -205,7 +197,7 @@ export default function MembersPage() {
           {members.length > 0 && !isLoading && (
             <div className="mt-8 bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Estadísticas</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600">{members.length}</div>
                   <div className="text-sm text-gray-600">Total de Miembros</div>
@@ -213,10 +205,6 @@ export default function MembersPage() {
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">{membersWithPhone.length}</div>
                   <div className="text-sm text-gray-600">Con Teléfono</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">{activeYears}</div>
-                  <div className="text-sm text-gray-600">Años Activos</div>
                 </div>
               </div>
             </div>
