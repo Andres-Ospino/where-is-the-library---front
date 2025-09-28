@@ -2,34 +2,69 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { loansApi, ApiError, authApi } from "@/lib/api"
-import type { Book, Member, CreateLoanDto } from "@/lib/types"
+import type { Book, Member, CreateLoanDto, Library } from "@/lib/types"
 import { ErrorMessage } from "@/components/ui/error-message"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 
 interface LoanActionsProps {
   books: Book[]
   members: Member[]
+  libraries: Library[]
+  initialLibraryId?: string
   onLoanCreated?: () => Promise<void> | void
 }
 
-export function LoanActions({ books, members, onLoanCreated }: LoanActionsProps) {
+export function LoanActions({ books, members, libraries, initialLibraryId, onLoanCreated }: LoanActionsProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedLibraryId, setSelectedLibraryId] = useState<string>(() => {
+    if (initialLibraryId && libraries.some((library) => library.id === initialLibraryId)) {
+      return initialLibraryId
+    }
+
+    return libraries[0]?.id ?? ""
+  })
   const [formData, setFormData] = useState<CreateLoanDto>({
     bookId: "",
     memberId: "",
   })
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  useEffect(() => {
+    if (libraries.length === 0) {
+      setSelectedLibraryId("")
+      return
+    }
+
+    if (initialLibraryId && libraries.some((library) => library.id === initialLibraryId)) {
+      setSelectedLibraryId(initialLibraryId)
+      return
+    }
+
+    setSelectedLibraryId((current) => {
+      if (current && libraries.some((library) => library.id === current)) {
+        return current
+      }
+
+      return libraries[0]?.id ?? ""
+    })
+  }, [initialLibraryId, libraries])
+
+  const handleLoanFieldChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }))
+  }
+
+  const handleLibraryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newLibraryId = e.target.value
+    setSelectedLibraryId(newLibraryId)
+    setFormData({ bookId: "", memberId: "" })
   }
 
   const handleCreateLoan = async (e: React.FormEvent) => {
@@ -38,6 +73,19 @@ export function LoanActions({ books, members, onLoanCreated }: LoanActionsProps)
     setError(null)
 
     try {
+      if (!selectedLibraryId) {
+        setError("Selecciona una biblioteca para continuar con el préstamo")
+        setIsLoading(false)
+        return
+      }
+
+      const selectedBook = books.find((book) => book.id === formData.bookId)
+      if (!selectedBook || selectedBook.libraryId !== selectedLibraryId) {
+        setError("El libro seleccionado no pertenece a la biblioteca elegida")
+        setIsLoading(false)
+        return
+      }
+
       await loansApi.create(formData)
       if (onLoanCreated) {
         await onLoanCreated()
@@ -58,13 +106,41 @@ export function LoanActions({ books, members, onLoanCreated }: LoanActionsProps)
     }
   }
 
-  const isFormValid = formData.bookId && formData.memberId
+  const booksForSelectedLibrary = books.filter((book) => book.libraryId === selectedLibraryId)
+  const isFormValid = selectedLibraryId && formData.bookId && formData.memberId
+  const hasLibraries = libraries.length > 0
 
   return (
     <form onSubmit={handleCreateLoan} className="space-y-4">
       {error && <ErrorMessage message={error} />}
 
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid md:grid-cols-3 gap-4">
+        {/* Library Selection */}
+        <div>
+          <label htmlFor="libraryId" className="block text-sm font-medium text-gray-700 mb-2">
+            Seleccionar Biblioteca
+          </label>
+          <select
+            id="libraryId"
+            name="libraryId"
+            value={selectedLibraryId}
+            onChange={handleLibraryChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            disabled={isLoading || !hasLibraries}
+          >
+            {hasLibraries ? (
+              libraries.map((library) => (
+                <option key={library.id} value={library.id}>
+                  {library.name}
+                </option>
+              ))
+            ) : (
+              <option value="">No hay bibliotecas disponibles</option>
+            )}
+          </select>
+        </div>
+
         {/* Book Selection */}
         <div>
           <label htmlFor="bookId" className="block text-sm font-medium text-gray-700 mb-2">
@@ -74,18 +150,23 @@ export function LoanActions({ books, members, onLoanCreated }: LoanActionsProps)
             id="bookId"
             name="bookId"
             value={formData.bookId}
-            onChange={handleInputChange}
+            onChange={handleLoanFieldChange}
             required
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             disabled={isLoading}
           >
             <option value="">Selecciona un libro...</option>
-            {books.map((book) => (
+            {booksForSelectedLibrary.map((book) => (
               <option key={book.id} value={book.id}>
                 {book.title} - {book.author}
               </option>
             ))}
           </select>
+          {hasLibraries && booksForSelectedLibrary.length === 0 && (
+            <p className="text-xs text-gray-500 mt-2">
+              No hay libros disponibles en esta biblioteca. Publica un título para habilitar préstamos.
+            </p>
+          )}
         </div>
 
         {/* Member Selection */}
@@ -97,7 +178,7 @@ export function LoanActions({ books, members, onLoanCreated }: LoanActionsProps)
             id="memberId"
             name="memberId"
             value={formData.memberId}
-            onChange={handleInputChange}
+            onChange={handleLoanFieldChange}
             required
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             disabled={isLoading}
@@ -109,6 +190,11 @@ export function LoanActions({ books, members, onLoanCreated }: LoanActionsProps)
               </option>
             ))}
           </select>
+          {members.length === 0 && (
+            <p className="text-xs text-gray-500 mt-2">
+              Registra miembros para poder asignar préstamos en esta biblioteca.
+            </p>
+          )}
         </div>
       </div>
 
@@ -116,7 +202,7 @@ export function LoanActions({ books, members, onLoanCreated }: LoanActionsProps)
       <div className="flex justify-end">
         <button
           type="submit"
-          disabled={!isFormValid || isLoading}
+          disabled={!isFormValid || isLoading || !hasLibraries || booksForSelectedLibrary.length === 0}
           className="bg-purple-600 text-white px-6 py-2 rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {isLoading ? (

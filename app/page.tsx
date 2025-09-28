@@ -4,13 +4,39 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <header className="text-center mb-12">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">Sistema de Gestión de Biblioteca</h1>
             <p className="text-lg text-gray-600">Gestiona libros, miembros y préstamos de manera eficiente</p>
           </header>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Libraries Section */}
+            <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 5h18M5 7v12a2 2 0 002 2h10a2 2 0 002-2V7M9 5V3h6v2"
+                    />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">Bibliotecas</h2>
+                <p className="text-gray-600 mb-4">Explora catálogos y lanza préstamos desde el marketplace</p>
+                <div className="space-y-2">
+                  <Link
+                    href="/libraries"
+                    className="block w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition-colors"
+                  >
+                    Ver Bibliotecas
+                  </Link>
+                </div>
+              </div>
+            </div>
+
             {/* Books Section */}
             <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
               <div className="text-center">

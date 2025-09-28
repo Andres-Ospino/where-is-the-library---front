@@ -2,9 +2,11 @@
 import type {
   Book,
   BookQuery,
+  CreateLibraryDto,
   CreateBookDto,
   CreateLoanDto,
   CreateMemberDto,
+  Library,
   Loan,
   LoanQuery,
   Member,
@@ -295,6 +297,16 @@ export const booksApi = {
   create: (data: CreateBookDto) => api.post<Book | undefined>("/books", data),
   update: (id: string, data: Partial<CreateBookDto>) => api.patch<Book | undefined>(`/books/${id}`, data),
   delete: (id: string) => api.delete<void>(`/books/${id}`),
+}
+
+// Specific API methods for libraries
+export const librariesApi = {
+  getAll: () => api.get<Library[]>("/libraries"),
+  getById: (id: string) => api.get<Library>(`/libraries/${id}`),
+  create: (data: CreateLibraryDto) => api.post<Library | undefined>("/libraries", data),
+  update: (id: string, data: Partial<CreateLibraryDto>) =>
+    api.patch<Library | undefined>(`/libraries/${id}`, data),
+  delete: (id: string) => api.delete<void>(`/libraries/${id}`),
 }
 
 // Specific API methods for members
