@@ -22,11 +22,16 @@ export function LoanActions({ books, members, libraries, initialLibraryId, onLoa
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedLibraryId, setSelectedLibraryId] = useState<string>(() => {
-    if (initialLibraryId && libraries.some((library) => library.id === initialLibraryId)) {
-      return initialLibraryId
+    const normalizedInitialId = initialLibraryId ? String(initialLibraryId) : null
+
+    if (
+      normalizedInitialId &&
+      libraries.some((library) => String(library.id) === normalizedInitialId)
+    ) {
+      return normalizedInitialId
     }
 
-    return libraries[0]?.id ?? ""
+    return libraries[0] ? String(libraries[0].id) : ""
   })
   const [formData, setFormData] = useState<CreateLoanDto>({
     bookId: "",
@@ -39,17 +44,22 @@ export function LoanActions({ books, members, libraries, initialLibraryId, onLoa
       return
     }
 
-    if (initialLibraryId && libraries.some((library) => library.id === initialLibraryId)) {
-      setSelectedLibraryId(initialLibraryId)
+    const normalizedInitialId = initialLibraryId ? String(initialLibraryId) : null
+
+    if (
+      normalizedInitialId &&
+      libraries.some((library) => String(library.id) === normalizedInitialId)
+    ) {
+      setSelectedLibraryId(normalizedInitialId)
       return
     }
 
     setSelectedLibraryId((current) => {
-      if (current && libraries.some((library) => library.id === current)) {
+      if (current && libraries.some((library) => String(library.id) === current)) {
         return current
       }
 
-      return libraries[0]?.id ?? ""
+      return libraries[0] ? String(libraries[0].id) : ""
     })
   }, [initialLibraryId, libraries])
 
@@ -79,8 +89,8 @@ export function LoanActions({ books, members, libraries, initialLibraryId, onLoa
         return
       }
 
-      const selectedBook = books.find((book) => book.id === formData.bookId)
-      if (!selectedBook || selectedBook.libraryId !== selectedLibraryId) {
+      const selectedBook = books.find((book) => String(book.id) === formData.bookId)
+      if (!selectedBook || String(selectedBook.libraryId) !== selectedLibraryId) {
         setError("El libro seleccionado no pertenece a la biblioteca elegida")
         setIsLoading(false)
         return
@@ -106,7 +116,9 @@ export function LoanActions({ books, members, libraries, initialLibraryId, onLoa
     }
   }
 
-  const booksForSelectedLibrary = books.filter((book) => book.libraryId === selectedLibraryId)
+  const booksForSelectedLibrary = books.filter(
+    (book) => String(book.libraryId) === selectedLibraryId,
+  )
   const isFormValid = selectedLibraryId && formData.bookId && formData.memberId
   const hasLibraries = libraries.length > 0
 
@@ -131,7 +143,7 @@ export function LoanActions({ books, members, libraries, initialLibraryId, onLoa
           >
             {hasLibraries ? (
               libraries.map((library) => (
-                <option key={library.id} value={library.id}>
+                <option key={library.id} value={String(library.id)}>
                   {library.name}
                 </option>
               ))
@@ -157,7 +169,7 @@ export function LoanActions({ books, members, libraries, initialLibraryId, onLoa
           >
             <option value="">Selecciona un libro...</option>
             {booksForSelectedLibrary.map((book) => (
-              <option key={book.id} value={book.id}>
+              <option key={book.id} value={String(book.id)}>
                 {book.title} - {book.author}
               </option>
             ))}
