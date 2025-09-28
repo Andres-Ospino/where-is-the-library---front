@@ -2,24 +2,67 @@
 
 import type React from "react"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { booksApi } from "@/lib/api"
-import type { CreateBookDto } from "@/lib/types"
+import { useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { booksApi, librariesApi } from "@/lib/api"
+import type { CreateBookDto, Library } from "@/lib/types"
 import { ErrorMessage } from "@/components/ui/error-message"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 
 export function CreateBookForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [libraries, setLibraries] = useState<Library[]>([])
+  const [isLoadingLibraries, setIsLoadingLibraries] = useState(true)
   const [formData, setFormData] = useState<CreateBookDto>({
     title: "",
     author: "",
     isbn: "",
+    libraryId: "",
   })
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    let isActive = true
+
+    const loadLibraries = async () => {
+      setIsLoadingLibraries(true)
+      try {
+        const librariesResponse = await librariesApi.getAll()
+        if (!isActive) return
+
+        setLibraries(librariesResponse)
+
+        if (librariesResponse.length > 0) {
+          const libraryIdFromQuery = searchParams.get("libraryId")
+          const defaultLibrary =
+            librariesResponse.find((library) => library.id === libraryIdFromQuery) ?? librariesResponse[0]
+          setFormData((prev) => ({
+            ...prev,
+            libraryId: prev.libraryId || defaultLibrary?.id || "",
+          }))
+        }
+      } catch (err: any) {
+        if (!isActive) return
+
+        console.error("Error loading libraries:", err)
+        setError(err.message || "No se pudieron cargar las bibliotecas disponibles")
+      } finally {
+        if (isActive) {
+          setIsLoadingLibraries(false)
+        }
+      }
+    }
+
+    void loadLibraries()
+
+    return () => {
+      isActive = false
+    }
+  }, [searchParams])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
@@ -38,6 +81,7 @@ export function CreateBookForm() {
         title: formData.title.trim(),
         author: formData.author.trim(),
         ...(formData.isbn?.trim() && { isbn: formData.isbn.trim() }),
+        libraryId: formData.libraryId,
       }
 
       await booksApi.create(dataToSend)
@@ -51,7 +95,9 @@ export function CreateBookForm() {
     }
   }
 
-  const isFormValid = formData.title.trim() && formData.author.trim()
+  const hasLibrariesAvailable = libraries.length > 0
+  const isFormValid =
+    formData.title.trim() && formData.author.trim() && formData.libraryId && hasLibrariesAvailable
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -108,6 +154,38 @@ export function CreateBookForm() {
           placeholder="Ingresa el ISBN del libro"
           disabled={isLoading}
         />
+      </div>
+
+      {/* Library Field */}
+      <div>
+        <label htmlFor="libraryId" className="block text-sm font-medium text-gray-700 mb-2">
+          Biblioteca *
+        </label>
+        {isLoadingLibraries ? (
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <LoadingSpinner className="w-4 h-4" /> Cargando bibliotecas...
+          </div>
+        ) : hasLibrariesAvailable ? (
+          <select
+            id="libraryId"
+            name="libraryId"
+            value={formData.libraryId}
+            onChange={handleInputChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            disabled={isLoading}
+          >
+            {libraries.map((library) => (
+              <option key={library.id} value={library.id}>
+                {library.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <p className="text-sm text-gray-600">
+            No hay bibliotecas registradas. Crea una biblioteca para poder asociar el libro.
+          </p>
+        )}
       </div>
 
       {/* Form Actions */}

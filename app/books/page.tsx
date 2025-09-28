@@ -68,7 +68,9 @@ export default function BooksPage() {
           <div className="flex justify-between items-center mb-8">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Gestión de Libros</h1>
-              <p className="text-gray-600 mt-2">Administra el catálogo de libros de la biblioteca</p>
+              <p className="text-gray-600 mt-2">
+                Administra el catálogo centralizado y revisa qué biblioteca aloja cada título
+              </p>
             </div>
             <div className="flex gap-4">
               <Link
@@ -76,6 +78,12 @@ export default function BooksPage() {
                 className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors"
               >
                 Volver al Inicio
+              </Link>
+              <Link
+                href="/libraries"
+                className="bg-purple-100 text-purple-700 px-4 py-2 rounded-md hover:bg-purple-200 transition-colors"
+              >
+                Ver Bibliotecas
               </Link>
               <Link
                 href="/books/new"
@@ -105,7 +113,9 @@ export default function BooksPage() {
                 </svg>
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No hay libros registrados</h3>
-              <p className="text-gray-600 mb-4">Comienza agregando el primer libro a la biblioteca</p>
+              <p className="text-gray-600 mb-4">
+                Comienza agregando el primer libro a alguna de tus bibliotecas activas
+              </p>
               <Link
                 href="/books/new"
                 className="inline-flex items-center bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
@@ -121,6 +131,9 @@ export default function BooksPage() {
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-2">{book.title}</h3>
                       <p className="text-gray-600 text-sm mb-2">por {book.author}</p>
+                      <p className="text-gray-500 text-xs mb-1">
+                        Biblioteca: {book.library?.name ?? "No especificada"}
+                      </p>
                       {book.isbn && <p className="text-gray-500 text-xs">ISBN: {book.isbn}</p>}
                     </div>
                     <div
