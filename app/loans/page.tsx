@@ -2,19 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { loansApi, booksApi, membersApi, ApiError, authApi } from "@/lib/api"
-import type { Loan, Book, Member } from "@/lib/types"
+import { useRouter, useSearchParams } from "next/navigation"
+import { loansApi, booksApi, membersApi, librariesApi, ApiError, authApi } from "@/lib/api"
+import type { Loan, Book, Member, Library } from "@/lib/types"
 import { ErrorMessage } from "@/components/ui/error-message"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { LoanActions } from "./loan-actions"
 
 export default function LoansPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const isMountedRef = useRef(true)
   const [loans, setLoans] = useState<Loan[]>([])
   const [books, setBooks] = useState<Book[]>([])
   const [members, setMembers] = useState<Member[]>([])
+  const [libraries, setLibraries] = useState<Library[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -30,6 +32,7 @@ export default function LoansPage() {
     setLoans([])
     setBooks([])
     setMembers([])
+    setLibraries([])
     router.replace("/auth/login")
   }, [router])
 
@@ -40,7 +43,8 @@ export default function LoansPage() {
     setError(null)
 
     try {
-      const [loansResponse, booksResponse, membersResponse] = await Promise.all([
+      const [librariesResponse, loansResponse, booksResponse, membersResponse] = await Promise.all([
+        librariesApi.getAll(),
         loansApi.getAll(),
         booksApi.getAll(),
         membersApi.getAll(),
@@ -48,6 +52,7 @@ export default function LoansPage() {
 
       if (!isMountedRef.current) return
 
+      setLibraries(librariesResponse)
       setLoans(loansResponse)
       setBooks(booksResponse)
       setMembers(membersResponse)
@@ -63,6 +68,7 @@ export default function LoansPage() {
 
       const message = err instanceof Error ? err.message : "Error al cargar los datos de préstamos"
       setError(message)
+      setLibraries([])
       setLoans([])
       setBooks([])
       setMembers([])
@@ -97,15 +103,33 @@ export default function LoansPage() {
     [handleUnauthorized, loadData],
   )
 
-  const enrichedLoans = loans.map((loan) => ({
-    ...loan,
-    book: books.find((book) => book.id === loan.bookId),
-    member: members.find((member) => member.id === loan.memberId),
-  }))
+  const enrichedLoans = loans.map((loan) => {
+    const book = books.find((item) => item.id === loan.bookId)
+    const member = members.find((item) => item.id === loan.memberId)
+    const library = book ? libraries.find((item) => item.id === book.libraryId) : undefined
+
+    return {
+      ...loan,
+      book,
+      member,
+      library,
+    }
+  })
 
   const activeLoans = enrichedLoans.filter((loan) => !loan.isReturned)
   const returnedLoans = enrichedLoans.filter((loan) => loan.isReturned)
   const availableBooks = books.filter((book) => book.available)
+  const availableBooksByLibrary = availableBooks.reduce<Record<string, Book[]>>((acc, book) => {
+    if (!acc[book.libraryId]) {
+      acc[book.libraryId] = []
+    }
+    acc[book.libraryId]?.push(book)
+    return acc
+  }, {})
+  const librariesWithStock = libraries.filter(
+    (library) => (availableBooksByLibrary[library.id]?.length ?? 0) > 0,
+  ).length
+  const preselectedLibraryId = searchParams.get("libraryId") ?? undefined
 
   const now = new Date()
   const activeLoansWithDueInfo = activeLoans.filter((loan) => {
@@ -137,7 +161,9 @@ export default function LoansPage() {
           <div className="flex justify-between items-center mb-8">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Gestión de Préstamos</h1>
-              <p className="text-gray-600 mt-2">Administra préstamos y devoluciones de libros</p>
+              <p className="text-gray-600 mt-2">
+                Administra préstamos y devoluciones conectando miembros con libros disponibles en cada biblioteca
+              </p>
             </div>
             <div className="flex gap-4">
               <Link
@@ -157,7 +183,7 @@ export default function LoansPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
                 <div className="bg-white rounded-lg shadow-md p-4">
                   <div className="text-2xl font-bold text-purple-600">{activeLoans.length}</div>
                   <div className="text-sm text-gray-600">Préstamos Activos</div>
@@ -171,15 +197,35 @@ export default function LoansPage() {
                   <div className="text-sm text-gray-600">Libros Disponibles</div>
                 </div>
                 <div className="bg-white rounded-lg shadow-md p-4">
+                  <div className="text-2xl font-bold text-indigo-600">{librariesWithStock}</div>
+                  <div className="text-sm text-gray-600">Bibliotecas con libros disponibles</div>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-4">
                   <div className="text-2xl font-bold text-red-600">{overdueDisplayValue}</div>
                   <div className="text-sm text-gray-600">Vencidos</div>
                 </div>
               </div>
 
-              {availableBooks.length > 0 && members.length > 0 && (
+              {libraries.length > 0 ? (
                 <div className="bg-white rounded-lg shadow-md p-6 mb-8">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Crear Nuevo Préstamo</h2>
-                  <LoanActions books={availableBooks} members={members} onLoanCreated={loadData} />
+                  <p className="text-sm text-gray-600 mb-4">
+                    Selecciona una biblioteca para filtrar los libros disponibles y asignar el préstamo al catálogo correcto.
+                  </p>
+                  <LoanActions
+                    books={availableBooks}
+                    members={members}
+                    libraries={libraries}
+                    initialLibraryId={preselectedLibraryId}
+                    onLoanCreated={loadData}
+                  />
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-2">No hay bibliotecas registradas</h2>
+                  <p className="text-sm text-gray-600">
+                    Crea una biblioteca en la sección de marketplace para habilitar préstamos y asociar libros.
+                  </p>
                 </div>
               )}
 
@@ -223,6 +269,9 @@ export default function LoansPage() {
                               </div>
                               <p className="text-gray-600 mb-1">Autor: {loan.book?.author || "Desconocido"}</p>
                               <p className="text-gray-600 mb-1">Miembro: {loan.member?.name || "Miembro no encontrado"}</p>
+                              <p className="text-gray-600 mb-1">
+                                Biblioteca: {loan.library?.name || loan.book?.library?.name || "No disponible"}
+                              </p>
                               <div className="flex flex-wrap gap-4 text-sm text-gray-500">
                                 <span>Prestado: {loanDateLabel ?? "Fecha no disponible"}</span>
                                 <span>
@@ -269,6 +318,9 @@ export default function LoansPage() {
                                 </span>
                               </div>
                               <p className="text-gray-600 mb-1">Miembro: {loan.member?.name || "Miembro no encontrado"}</p>
+                              <p className="text-gray-600 mb-1">
+                                Biblioteca: {loan.library?.name || loan.book?.library?.name || "No disponible"}
+                              </p>
                               <div className="flex flex-wrap gap-4 text-sm text-gray-500">
                                 <span>Prestado: {loanDateLabel ?? "Fecha no disponible"}</span>
                                 {returnDateLabel && <span>Devuelto: {returnDateLabel}</span>}

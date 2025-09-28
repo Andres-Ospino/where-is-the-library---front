@@ -7,6 +7,7 @@ Un sistema completo de gestión de biblioteca construido con Next.js, TypeScript
 - **Gestión de Libros**: Agregar, listar y administrar el catálogo de libros
 - **Gestión de Miembros**: Registrar y administrar miembros de la biblioteca
 - **Sistema de Préstamos**: Crear préstamos y gestionar devoluciones
+- **Marketplace de Bibliotecas**: Explora catálogos por biblioteca y lanza préstamos contextualizados
 - **Interfaz Moderna**: UI limpia y responsiva con TailwindCSS
 - **TypeScript**: Tipado estricto para mayor confiabilidad
 - **Arquitectura Limpia**: Separación clara entre Server y Client Components
@@ -116,6 +117,8 @@ gcloud run services update library-management \\
 │   │   ├── page.tsx       # Lista de libros (Server Component)
 │   │   └── new/           # Crear libro
 │   │       └── create-book-form.tsx  # Formulario (Client Component)
+│   ├── libraries/         # Marketplace de bibliotecas y catálogos
+│   │   └── page.tsx       # Listado de bibliotecas
 │   ├── members/           # Gestión de miembros
 │   │   ├── page.tsx       # Lista de miembros
 │   │   └── new/           # Crear miembro
@@ -139,6 +142,13 @@ gcloud run services update library-management \\
 ## 🔧 Configuración de la API
 
 El sistema está diseñado para consumir una API REST de NestJS. Asegúrate de que tu backend tenga los siguientes endpoints:
+
+### Bibliotecas
+- `GET /libraries` - Listar bibliotecas con sus libros
+- `POST /libraries` - Crear biblioteca
+- `GET /libraries/:id` - Obtener biblioteca por ID
+- `PATCH /libraries/:id` - Actualizar biblioteca
+- `DELETE /libraries/:id` - Eliminar biblioteca
 
 ### Libros
 - \`GET /books\` - Listar libros
