@@ -13,6 +13,8 @@ export default function LibrariesPage() {
   const [libraries, setLibraries] = useState<Library[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [deletingLibraryId, setDeletingLibraryId] = useState<string | null>(null)
 
   useEffect(() => {
     let isActive = true
@@ -20,6 +22,7 @@ export default function LibrariesPage() {
     const loadLibraries = async () => {
       setIsLoading(true)
       setError(null)
+      setActionError(null)
 
       try {
         const response = await librariesApi.getAll()
@@ -56,6 +59,43 @@ export default function LibrariesPage() {
     }
   }, [router])
 
+  const handleDelete = async (libraryId: string, libraryName: string) => {
+    if (deletingLibraryId) {
+      return
+    }
+
+    const confirmation = window.confirm(
+      `¿Deseas eliminar la biblioteca "${libraryName}"? Esta acción no se puede deshacer.`,
+    )
+
+    if (!confirmation) {
+      return
+    }
+
+    setDeletingLibraryId(libraryId)
+    setActionError(null)
+
+    try {
+      await librariesApi.delete(libraryId)
+      setLibraries((previous) => previous.filter((library) => library.id !== libraryId))
+      router.refresh()
+    } catch (err) {
+      console.error("Error deleting library:", err)
+
+      if (err instanceof ApiError && err.statusCode === 401) {
+        authApi.clearToken()
+        setActionError("Tu sesión ha expirado. Redirigiendo al inicio de sesión...")
+        router.replace("/auth/login")
+        return
+      }
+
+      const message = err instanceof Error ? err.message : "No se pudo eliminar la biblioteca"
+      setActionError(message)
+    } finally {
+      setDeletingLibraryId(null)
+    }
+  }
+
   const totalLibraries = libraries.length
   const totalBooks = libraries.reduce((acc, library) => acc + (library.books?.length ?? 0), 0)
   const librariesWithBooks = libraries.filter((library) => (library.books?.length ?? 0) > 0)
@@ -71,12 +111,24 @@ export default function LibrariesPage() {
                 Descubre las bibliotecas disponibles y sus catálogos para iniciar un préstamo al instante
               </p>
             </div>
-            <Link href="/" className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors">
-              Volver al Inicio
-            </Link>
+            <div className="flex flex-wrap gap-4 justify-end">
+              <Link
+                href="/"
+                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Volver al Inicio
+              </Link>
+              <Link
+                href="/libraries/new"
+                className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
+              >
+                Agregar Biblioteca
+              </Link>
+            </div>
           </div>
 
           {error && <ErrorMessage message={error} className="mb-6" />}
+          {actionError && !error && <ErrorMessage message={actionError} className="mb-6" />}
 
           {isLoading ? (
             <div className="flex justify-center py-12">
@@ -150,6 +202,26 @@ export default function LibrariesPage() {
                           >
                             Agregar libro a esta biblioteca
                           </Link>
+                          <Link
+                            href={`/libraries/${library.id}/edit`}
+                            className="inline-flex items-center bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors"
+                          >
+                            Editar
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(library.id, library.name)}
+                            disabled={deletingLibraryId === library.id}
+                            className="inline-flex items-center bg-red-100 text-red-700 px-4 py-2 rounded-md hover:bg-red-200 transition-colors disabled:opacity-60"
+                          >
+                            {deletingLibraryId === library.id ? (
+                              <span className="flex items-center gap-2">
+                                <LoadingSpinner className="w-4 h-4" /> Eliminando...
+                              </span>
+                            ) : (
+                              "Eliminar"
+                            )}
+                          </button>
                         </div>
                       </div>
 
